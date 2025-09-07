@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>h0stream - Account</title>
+    <link rel="stylesheet" href="../src/assets/account.css">
+</head>
+<body>
+    <div class="floating-elements">
+        <div class="float-element"></div>
+        <div class="float-element"></div>
+        <div class="float-element"></div>
+    </div>
+
+    <div class="nav-links">
+        <a href="index.html" class="nav-link">← Back to h0stream</a>
+    </div>
+
+    <div class="account-container">
+        <h1 class="logo">h0stream</h1>
+        
+        <!-- Main Menu -->
+        <div id="mainMenu">
+            <div class="option-card" onclick="showRegistration()">
+                <h3>Create New Account</h3>
+                <p>Generate a new account file that you'll use to access your h0stream account. No data is stored on our servers.</p>
+                <button class="btn btn-primary" style="pointer-events: none;">Generate Account File</button>
+            </div>
+
+            <div class="option-card" onclick="showLogin()">
+                <h3>Sign In</h3>
+                <p>Upload your existing h0stream account file to access your account and watchlist.</p>
+                <button class="btn btn-secondary" style="pointer-events: none;">Upload Account File</button>
+            </div>
+        </div>
+
+        <!-- Registration Screen -->
+        <div id="registrationScreen" class="hidden">
+            <h2 style="margin-bottom: 1.5rem;">Create Your Account</h2>
+            <div id="registrationMessage"></div>
+
+            <div class="account-steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <span>Click "Generate Account File" to create your unique account</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <span>Save the downloaded file somewhere safe</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <span>Use this file to sign in from any device</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="generateAccount()" id="generateBtn">
+                Generate Account File
+            </button>
+            <button class="btn btn-back" onclick="showMainMenu()">Back</button>
+
+            <div class="message info" style="margin-top: 1rem;">
+                <strong>Privacy Note:</strong> Your account file contains all your data and is stored only on your device. We never see or store your information.
+            </div>
+        </div>
+
+        <!-- Login Screen -->
+        <div id="loginScreen" class="hidden">
+            <h2 style="margin-bottom: 1.5rem;">Sign In</h2>
+            <div id="loginMessage"></div>
+
+            <div class="file-upload-area" onclick="document.getElementById('accountFile').click()">
+                <div class="upload-icon">📁</div>
+                <p><strong>Upload your h0stream account file</strong></p>
+                <p style="font-size: 0.9rem; opacity: 0.7; margin-top: 0.5rem;">
+                    Drag & drop your .h0account file here, or click to browse
+                </p>
+            </div>
+            <input type="file" id="accountFile" style="display: none;" accept=".h0account" onchange="handleAccountFile(event)">
+
+            <button class="btn btn-back" onclick="showMainMenu()">Back</button>
+        </div>
+
+        <!-- User Dashboard -->
+        <div id="userDashboard" class="hidden">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <h2 id="welcomeMessage">Welcome!</h2>
+                <p id="userDetails"></p>
+            </div>
+
+            <button class="btn btn-secondary" onclick="downloadAccountFile()">
+                💾 Backup Account File
+            </button>
+            <button class="btn btn-secondary" onclick="exportWatchlist()">
+                📋 Export Watchlist
+            </button>
+            <button class="btn btn-secondary" onclick="importWatchlist()">
+                📂 Import Watchlist
+            </button>
+            <button class="btn btn-primary" onclick="logout()">
+                🚪 Sign Out
+            </button>
+
+            <input type="file" id="watchlistFile" style="display: none;" accept=".json" onchange="handleWatchlistImport(event)">
+        </div>
+    </div>
+
+    <script>
+        // File-based Account System
+        class FileAccountSystem {
+            constructor() {
+                this.currentUser = null;
+                this.sessionData = null;
+                this.init();
+            }
+
+            init() {
+                // Check if user is already logged in this session
+                const sessionUser = sessionStorage.getItem('h0stream_session');
+                if (sessionUser) {
+                    this.currentUser = JSON.parse(sessionUser);
+                    this.showDashboard();
+                }
+
+                // Set up drag and drop for account file
+                this.setupDragAndDrop();
+            }
+
+            generateUniqueId() {
+                const timestamp = Date.now();
+                const random = Math.random().toString(36).substr(2, 9);
+                return `h0user_${timestamp}_${random}`;
+            }
+
+            generateAccountData() {
+                const accountId = this.generateUniqueId();
+                const createdAt = new Date().toISOString();
+                
+                // Generate a unique username based on timestamp
+                const username = `User${Date.now().toString().slice(-6)}`;
+                
+                return {
+                    accountId: accountId,
+                    username: username,
+                    displayName: username,
+                    createdAt: createdAt,
+                    lastLoginAt: createdAt,
+                    version: '1.0',
+                    watchlist: [],
+                    preferences: {
+                        theme: 'dark',
+                        autoplay: false,
+                        notifications: true,
+                        language: 'en'
+                    },
+                    stats: {
+                        moviesWatched: 0,
+                        showsWatched: 0,
+                        totalWatchTime: 0
+                    }
+                };
+            }
+
+            createAccountFile(accountData) {
+                const fileContent = {
+                    type: 'h0stream_account',
+                    version: '1.0',
+                    generatedAt: new Date().toISOString(),
+                    account: accountData
+                };
+
+                return JSON.stringify(fileContent, null, 2);
+            }
+
+            downloadFile(content, filename, contentType = 'application/json') {
+                const blob = new Blob([content], { type: contentType });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }
+
+            validateAccountFile(fileData) {
+                try {
+                    const data = JSON.parse(fileData);
+                    
+                    if (data.type !== 'h0stream_account') {
+                        throw new Error('Invalid file type');
+                    }
+                    
+                    if (!data.account || !data.account.accountId) {
+                        throw new Error('Invalid account data');
+                    }
+                    
+                    return data.account;
+                } catch (error) {
+                    throw new Error('Invalid account file format');
+                }
+            }
+
+            loginWithFile(accountData) {
+                // Update last login time
+                accountData.lastLoginAt = new Date().toISOString();
+                
+                // Store in session only (no persistent storage)
+                sessionStorage.setItem('h0stream_session', JSON.stringify(accountData));
+                this.currentUser = accountData;
+                
+                return accountData;
+            }
+
+            showMessage(elementId, message, type = 'error') {
+                const element = document.getElementById(elementId);
+                element.innerHTML = `<div class="message ${type}">${message}</div>`;
+                setTimeout(() => element.innerHTML = '', 5000);
+            }
+
+            showMainMenu() {
+                this.hideAllScreens();
+                document.getElementById('mainMenu').classList.remove('hidden');
+            }
+
+            showRegistration() {
+                this.hideAllScreens();
+                document.getElementById('registrationScreen').classList.remove('hidden');
+            }
+
+            showLogin() {
+                this.hideAllScreens();
+                document.getElementById('loginScreen').classList.remove('hidden');
+            }
+
+            showDashboard() {
+                this.hideAllScreens();
+                document.getElementById('userDashboard').classList.remove('hidden');
+                
+                if (this.currentUser) {
+                    document.getElementById('userAvatar').textContent = 
+                        this.currentUser.displayName.charAt(0).toUpperCase();
+                    document.getElementById('welcomeMessage').textContent = 
+                        `Welcome, ${this.currentUser.displayName}!`;
+                    document.getElementById('userDetails').textContent = 
+                        `Account created: ${new Date(this.currentUser.createdAt).toLocaleDateString()}`;
+                }
+            }
+
+            hideAllScreens() {
+                document.getElementById('mainMenu').classList.add('hidden');
+                document.getElementById('registrationScreen').classList.add('hidden');
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('userDashboard').classList.add('hidden');
+            }
+
+            setupDragAndDrop() {
+                const uploadArea = document.querySelector('.file-upload-area');
+                if (!uploadArea) return;
+                
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, preventDefaults, false);
+                });
+
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.add('dragover');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.remove('dragover');
+                    }, false);
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.processAccountFile(files[0]);
+                    }
+                }, false);
+            }
+
+            processAccountFile(file) {
+                if (!file.name.endsWith('.h0account')) {
+                    this.showMessage('loginMessage', 'Please select a valid .h0account file');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const accountData = this.validateAccountFile(e.target.result);
+                        const user = this.loginWithFile(accountData);
+                        this.showMessage('loginMessage', 'Login successful!', 'success');
+                        
+                        setTimeout(() => {
+                            this.showDashboard();
+                        }, 1000);
+                        
+                    } catch (error) {
+                        this.showMessage('loginMessage', 'Error: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Initialize the file-based account system
+        const accountSystem = new FileAccountSystem();
+
+        // UI Functions
+        function showMainMenu() {
+            accountSystem.showMainMenu();
+        }
+
+        function showRegistration() {
+            accountSystem.showRegistration();
+        }
+
+        function showLogin() {
+            accountSystem.showLogin();
+        }
+
+        function generateAccount() {
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.classList.add('generating');
+            generateBtn.textContent = 'Generating Account...';
+
+            // Simulate generation time for better UX
+            setTimeout(() => {
+                try {
+                    const accountData = accountSystem.generateAccountData();
+                    const fileContent = accountSystem.createAccountFile(accountData);
+                    const filename = `h0stream_${accountData.username.toLowerCase()}_account.h0account`;
+                    
+                    accountSystem.downloadFile(fileContent, filename);
+                    
+                    accountSystem.showMessage('registrationMessage', 
+                        'Account file generated and downloaded! Keep this file safe - you\'ll need it to sign in.', 
+                        'success'
+                    );
+
+                    // Auto-login the user with their new account
+                    setTimeout(() => {
+                        accountSystem.loginWithFile(accountData);
+                        accountSystem.showDashboard();
+                    }, 2000);
+                    
+                } catch (error) {
+                    accountSystem.showMessage('registrationMessage', 'Error generating account: ' + error.message);
+                }
+
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('generating');
+                generateBtn.textContent = 'Generate Account File';
+            }, 1500);
+        }
+
+        function handleAccountFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                accountSystem.processAccountFile(file);
+            }
+        }
+
+        function downloadAccountFile() {
+            if (accountSystem.currentUser) {
+                const fileContent = accountSystem.createAccountFile(accountSystem.currentUser);
+                const filename = `h0stream_${accountSystem.currentUser.username.toLowerCase()}_backup.h0account`;
+                accountSystem.downloadFile(fileContent, filename);
+            }
+        }
+
+        function exportWatchlist() {
+            if (accountSystem.currentUser) {
+                const watchlistData = {
+                    type: 'h0stream_watchlist',
+                    version: '1.0',
+                    exportedAt: new Date().toISOString(),
+                    username: accountSystem.currentUser.username,
+                    watchlist: accountSystem.currentUser.watchlist || []
+                };
+                const filename = `h0stream_${accountSystem.currentUser.username.toLowerCase()}_watchlist.json`;
+                accountSystem.downloadFile(JSON.stringify(watchlistData, null, 2), filename);
+            }
+        }
+
+        function importWatchlist() {
+            document.getElementById('watchlistFile').click();
+        }
+
+        function handleWatchlistImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.type === 'h0stream_watchlist' && data.watchlist) {
+                        accountSystem.currentUser.watchlist = [...(accountSystem.currentUser.watchlist || []), ...data.watchlist];
+                        sessionStorage.setItem('h0stream_session', JSON.stringify(accountSystem.currentUser));
+                        alert('Watchlist imported successfully!');
+                    } else {
+                        alert('Invalid watchlist file format');
+                    }
+                } catch (error) {
+                    alert('Error importing watchlist: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function logout() {
+            sessionStorage.removeItem('h0stream_session');
+            accountSystem.currentUser = null;
+            accountSystem.showMainMenu();
+        }
+
+        // Add parallax effect to floating elements
+        document.addEventListener('mousemove', (e) => {
+            const elements = document.querySelectorAll('.float-element');
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            
+            elements.forEach((el, index) => {
+                const speed = (index + 1) * 0.02;
+                const xPos = (x - 0.5) * 50 * speed;
+                const yPos = (y - 0.5) * 50 * speed;
+                el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+            });
+        });
+    </script>
+</body>
+</html>

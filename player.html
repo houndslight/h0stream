@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>h0stream - Player</title>
+    <link rel="stylesheet" href="../src/assets/player.css">
+</head>
+<body>
+    <div class="player-container" id="playerContainer">
+        <div class="video-wrapper">
+            <div class="video-placeholder" id="videoPlaceholder">
+                <div class="floating-particles" id="particles"></div>
+                
+                <div class="demo-content">
+                    <h1 class="demo-title" id="movieTitle">Educational Demo Player</h1>
+                    <p class="demo-subtitle">This is a demonstration of how streaming players work</p>
+                    <div class="play-button" id="playButton" onclick="togglePlay()">
+                        <div class="play-icon" id="playIcon"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-overlay" id="controlsOverlay">
+                <div class="controls-bar">
+                    <button class="control-button" id="playPauseBtn" onclick="togglePlay()">▶</button>
+                    <button class="control-button" onclick="skip(-10)">⏪</button>
+                    <button class="control-button" onclick="skip(10)">⏩</button>
+                    
+                    <div class="progress-bar" id="progressBar" onclick="seekTo(event)">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    
+                    <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+                    
+                    <div class="volume-control">
+                        <button class="control-button" onclick="toggleMute()">🔊</button>
+                        <div class="volume-slider" onclick="setVolume(event)">
+                            <div class="volume-fill" id="volumeFill"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-menu">
+                        <button class="control-button" onclick="toggleSettings()">⚙️</button>
+                        <div class="settings-dropdown" id="settingsDropdown">
+                            <div class="settings-section">
+                                <div class="settings-label">Video Quality</div>
+                                <div class="quality-options">
+                                    <button class="quality-option" onclick="setQuality('4K')">4K Ultra HD</button>
+                                    <button class="quality-option active" onclick="setQuality('1080p')">1080p Full HD</button>
+                                    <button class="quality-option" onclick="setQuality('720p')">720p HD</button>
+                                    <button class="quality-option" onclick="setQuality('480p')">480p SD</button>
+                                    <button class="quality-option" onclick="setQuality('auto')">Auto</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="control-button" onclick="toggleFullscreen()">⛶</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-overlay">
+            <div class="movie-info" id="movieInfo">
+                <h3>Educational Streaming Demo</h3>
+                <p>This player demonstrates legitimate streaming technology including adaptive bitrate streaming, DRM protection, and content delivery networks.</p>
+            </div>
+        </div>
+
+        <button class="back-button" onclick="goBack()">← Back to h0stream</button>
+
+        <div class="educational-notice">
+            <strong>Educational Demo</strong><br>
+            This demonstrates how legitimate streaming services deliver content through licensed CDNs and DRM-protected streams.
+        </div>
+    </div>
+
+    <script>
+        // Player State
+        let isPlaying = false;
+        let currentTime = 0;
+        let duration = 7200; // 2 hours demo
+        let volume = 0.7;
+        let isMuted = false;
+        let currentQuality = '1080p';
+        let playbackRate = 1.0;
+
+        // Get URL parameters for movie info
+        const urlParams = new URLSearchParams(window.location.search);
+        const movieTitle = urlParams.get('title') || 'Educational Demo';
+        const movieYear = urlParams.get('year') || '2024';
+        const movieGenre = urlParams.get('genre') || 'Educational';
+        const movieId = urlParams.get('id') || null;
+
+        // Initialize player with movie data
+        function initializePlayer() {
+            document.getElementById('movieTitle').textContent = movieTitle;
+            document.getElementById('movieInfo').innerHTML = `
+                <h3>${movieTitle}</h3>
+                <p><strong>Year:</strong> ${movieYear}<br>
+                <strong>Genre:</strong> ${movieGenre}<br>
+                <strong>Note:</strong> This is an educational demonstration of streaming technology.</p>
+            `;
+            
+            createFloatingParticles();
+            updateTimeDisplay();
+            setInterval(updateProgress, 100);
+
+            // Update page title
+            document.title = `h0stream - Playing ${movieTitle}`;
+        }
+
+        // Create floating particles effect
+        function createFloatingParticles() {
+            const particlesContainer = document.getElementById('particles');
+            
+            setInterval(() => {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.width = particle.style.height = (Math.random() * 4 + 2) + 'px';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                
+                particlesContainer.appendChild(particle);
+                
+                setTimeout(() => {
+                    particle.remove();
+                }, 15000);
+            }, 500);
+        }
+
+        // Play/Pause functionality
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const playButton = document.getElementById('playButton');
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const playIcon = document.getElementById('playIcon');
+            
+            if (isPlaying) {
+                playButton.style.display = 'none';
+                playPauseBtn.textContent = '⏸';
+                document.getElementById('controlsOverlay').classList.add('visible');
+                simulatePlayback();
+            } else {
+                playButton.style.display = 'flex';
+                playPauseBtn.textContent = '▶';
+            }
+        }
+
+        // Simulate video playback
+        function simulatePlayback() {
+            if (isPlaying && currentTime < duration) {
+                currentTime += 0.1;
+                setTimeout(simulatePlayback, 100);
+            }
+        }
+
+        // Skip forward/backward
+        function skip(seconds) {
+            currentTime = Math.max(0, Math.min(duration, currentTime + seconds));
+            updateTimeDisplay();
+        }
+
+        // Seek to specific time
+        function seekTo(event) {
+            const progressBar = event.target;
+            const rect = progressBar.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const percentage = clickX / rect.width;
+            currentTime = duration * percentage;
+            updateTimeDisplay();
+        }
+
+        // Update progress bar and time display
+        function updateProgress() {
+            const progressFill = document.getElementById('progressFill');
+            const percentage = (currentTime / duration) * 100;
+            progressFill.style.width = percentage + '%';
+            updateTimeDisplay();
+        }
+
+        // Update time display
+        function updateTimeDisplay() {
+            const timeDisplay = document.getElementById('timeDisplay');
+            const current = formatTime(currentTime);
+            const total = formatTime(duration);
+            timeDisplay.textContent = `${current} / ${total}`;
+        }
+
+        // Format time in MM:SS format
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        // Volume controls
+        function toggleMute() {
+            isMuted = !isMuted;
+            updateVolumeDisplay();
+        }
+
+        function setVolume(event) {
+            const volumeSlider = event.target;
+            const rect = volumeSlider.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            volume = Math.max(0, Math.min(1, clickX / rect.width));
+            isMuted = false;
+            updateVolumeDisplay();
+        }
+
+        function updateVolumeDisplay() {
+            const volumeFill = document.getElementById('volumeFill');
+            const displayVolume = isMuted ? 0 : volume;
+            volumeFill.style.width = (displayVolume * 100) + '%';
+        }
+
+        // Settings menu
+        function toggleSettings() {
+            const dropdown = document.getElementById('settingsDropdown');
+            dropdown.classList.toggle('visible');
+        }
+
+        function setQuality(quality) {
+            currentQuality = quality;
+            
+            // Update active quality option
+            document.querySelectorAll('.quality-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Simulate quality change
+            showNotification(`Video quality changed to ${quality}`);
+            
+            // Hide dropdown
+            document.getElementById('settingsDropdown').classList.remove('visible');
+        }
+
+        // Fullscreen toggle
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {
+                    showNotification('Fullscreen not supported in this environment');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Show notification
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 1rem 2rem;
+                border-radius: 8px;
+                z-index: 10000;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 2000);
+        }
+
+        // Go back to appropriate page
+        function goBack() {
+            // If we have a movie ID, go back to series detail
+            if (movieId) {
+                window.location.href = `series-detail.html?id=${movieId}`;
+            } else {
+                // Otherwise go back to main search
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowLeft':
+                    skip(-10);
+                    break;
+                case 'ArrowRight':
+                    skip(10);
+                    break;
+                case 'KeyM':
+                    toggleMute();
+                    break;
+                case 'KeyF':
+                    toggleFullscreen();
+                    break;
+                case 'Escape':
+                    goBack();
+                    break;
+            }
+        });
+
+        // Initialize player when page loads
+        document.addEventListener('DOMContentLoaded', initializePlayer);
+
+        // Hide controls after inactivity
+        let controlsTimeout;
+        document.addEventListener('mousemove', () => {
+            document.getElementById('controlsOverlay').classList.add('visible');
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                if (isPlaying) {
+                    document.getElementById('controlsOverlay').classList.remove('visible');
+                }
+            }, 3000);
+        });
+
+        // Close settings when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.settings-menu')) {
+                document.getElementById('settingsDropdown').classList.remove('visible');
+            }
+        });
+    </script>
+</body>
+</html>

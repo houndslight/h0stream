@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>h0stream - Movie Details</title>
+    <link rel="stylesheet" href="../src/assets/series-detail.css">
+</head>
+<body>
+    <div class="floating-elements">
+        <div class="float-element"></div>
+        <div class="float-element"></div>
+        <div class="float-element"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="index.html" class="logo">h0stream</a>
+            <a href="index.html" class="back-btn">← Back to Search</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="loading" class="loading">🔍 Loading movie details...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="movieContent" style="display: none;">
+            <div class="movie-header">
+                <div class="poster-section">
+                    <img id="moviePoster" class="movie-poster" src="" alt="">
+                    <div id="ratingBadge" class="rating-badge"></div>
+                </div>
+                
+                <div class="movie-info">
+                    <h1 id="movieTitle" class="movie-title"></h1>
+                    <div id="movieMeta" class="movie-meta"></div>
+                    <p id="moviePlot" class="plot"></p>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="watchNow()">
+                            ▶️ Watch Now
+                        </button>
+                        <button class="btn btn-secondary" onclick="addToWatchlist()">
+                            📚 Add to Watchlist
+                        </button>
+                        <button class="btn btn-secondary" onclick="shareMovie()">
+                            🔗 Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sections">
+                <div class="section">
+                    <h2 class="section-title">🎬 Cast & Crew</h2>
+                    <div id="castSection" class="cast-grid"></div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">🔗 Watch Links</h2>
+                    <div id="streamingSection" class="streaming-links"></div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">📺 Episodes</h2>
+                    <div id="episodeSection" class="episode-list"></div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">ℹ️ Additional Info</h2>
+                    <div id="additionalInfo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = '6ea6878d';
+        const API_URL = 'https://www.omdbapi.com/';
+
+        // Get movie ID from URL parameters or use default for demo
+        const urlParams = new URLSearchParams(window.location.search);
+        const movieId = urlParams.get('id') || 'tt0111161'; // Default to The Shawshank Redemption for demo
+
+        async function loadMovieDetails() {
+            try {
+                const response = await fetch(`${API_URL}?i=${movieId}&apikey=${API_KEY}&plot=full`);
+                const movie = await response.json();
+
+                if (movie.Response === 'True') {
+                    displayMovieDetails(movie);
+                    loadAdditionalContent(movie);
+                } else {
+                    showError('Movie not found');
+                }
+            } catch (error) {
+                console.error('Error loading movie:', error);
+                showError('Failed to load movie details');
+            }
+        }
+
+        function displayMovieDetails(movie) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('movieContent').style.display = 'block';
+
+            // Basic movie info
+            document.getElementById('movieTitle').textContent = movie.Title;
+            document.getElementById('moviePoster').src = movie.Poster !== 'N/A' ? movie.Poster : 'https://via.placeholder.com/300x450/333333/ffffff?text=No+Poster';
+            document.getElementById('moviePoster').alt = movie.Title;
+            document.getElementById('moviePlot').textContent = movie.Plot;
+            document.getElementById('ratingBadge').textContent = movie.imdbRating !== 'N/A' ? movie.imdbRating : 'N/A';
+
+            // Meta information
+            const metaItems = [
+                { label: '📅', value: movie.Year },
+                { label: '⏱️', value: movie.Runtime },
+                { label: '🎭', value: movie.Genre },
+                { label: '🏆', value: movie.Rated },
+                { label: '🌐', value: movie.Language },
+                { label: '🏢', value: movie.Production }
+            ].filter(item => item.value && item.value !== 'N/A');
+
+            document.getElementById('movieMeta').innerHTML = metaItems
+                .map(item => `<div class="meta-item">${item.label} ${item.value}</div>`)
+                .join('');
+
+            // Update page title
+            document.title = `h0stream - ${movie.Title}`;
+        }
+
+        function loadAdditionalContent(movie) {
+            loadCastInfo(movie);
+            loadStreamingLinks(movie);
+            loadEpisodeGuide(movie);
+            loadAdditionalInfo(movie);
+        }
+
+        function loadCastInfo(movie) {
+            const castSection = document.getElementById('castSection');
+            
+            // Parse actors from OMDB data
+            const actors = movie.Actors && movie.Actors !== 'N/A' ? movie.Actors.split(', ') : [];
+            const director = movie.Director && movie.Director !== 'N/A' ? movie.Director : '';
+            const writer = movie.Writer && movie.Writer !== 'N/A' ? movie.Writer : '';
+
+            let castHTML = '';
+
+            // Add director
+            if (director) {
+                castHTML += `
+                    <div class="cast-member">
+                        <div class="cast-avatar">🎬</div>
+                        <div><strong>${director}</strong></div>
+                        <div style="font-size: 0.8rem; opacity: 0.7;">Director</div>
+                    </div>
+                `;
+            }
+
+            // Add main actors (limit to 6)
+            actors.slice(0, 6).forEach((actor, index) => {
+                castHTML += `
+                    <div class="cast-member">
+                        <div class="cast-avatar">👤</div>
+                        <div><strong>${actor}</strong></div>
+                        <div style="font-size: 0.8rem; opacity: 0.7;">Actor</div>
+                    </div>
+                `;
+            });
+
+            if (castHTML === '') {
+                castHTML = '<div style="text-align: center; opacity: 0.7;">Cast information not available</div>';
+            }
+
+            castSection.innerHTML = castHTML;
+        }
+
+        function loadStreamingLinks(movie) {
+            const streamingSection = document.getElementById('streamingSection');
+            
+            // Mock streaming links (in real app, you'd use a streaming availability API)
+            const mockStreaming = [
+                { name: 'Netflix', quality: 'HD', price: 'Included' },
+                { name: 'Amazon Prime', quality: '4K', price: '$3.99' },
+                { name: 'Hulu', quality: 'HD', price: 'Included' },
+                { name: 'Disney+', quality: '4K', price: 'Included' },
+                { name: 'Free Stream', quality: 'HD', price: 'Free' }
+            ];
+
+            const streamingHTML = mockStreaming.map(service => `
+                <a href="#" class="streaming-link" onclick="openStream('${service.name}', '${movie.Title}')">
+                    <div class="streaming-info">
+                        <div class="streaming-logo">${service.name.charAt(0)}</div>
+                        <div>
+                            <div><strong>${service.name}</strong></div>
+                            <div style="font-size: 0.8rem; opacity: 0.7;">${service.quality} • ${service.price}</div>
+                        </div>
+                    </div>
+                    <div>▶️</div>
+                </a>
+            `).join('');
+
+            streamingSection.innerHTML = streamingHTML;
+        }
+
+        function loadEpisodeGuide(movie) {
+            const episodeSection = document.getElementById('episodeSection');
+            
+            if (movie.Type === 'series') {
+                // Mock episode data for TV series
+                const mockEpisodes = Array.from({ length: 10 }, (_, i) => ({
+                    number: i + 1,
+                    title: `Episode ${i + 1}`,
+                    duration: '42 min',
+                    description: 'Episode description would go here...'
+                }));
+
+                const episodeHTML = mockEpisodes.map(episode => `
+                    <div class="episode" onclick="playEpisode(${episode.number})">
+                        <div class="episode-title">S1E${episode.number} - ${episode.title}</div>
+                        <div class="episode-meta">${episode.duration} • ${episode.description}</div>
+                    </div>
+                `).join('');
+
+                episodeSection.innerHTML = episodeHTML;
+            } else {
+                episodeSection.innerHTML = '<div style="text-align: center; opacity: 0.7;">This is a movie - no episodes available</div>';
+            }
+        }
+
+        function loadAdditionalInfo(movie) {
+            const additionalInfo = document.getElementById('additionalInfo');
+            
+            const infoItems = [
+                { label: 'Box Office', value: movie.BoxOffice },
+                { label: 'Awards', value: movie.Awards },
+                { label: 'Metascore', value: movie.Metascore },
+                { label: 'Country', value: movie.Country },
+                { label: 'Released', value: movie.Released },
+                { label: 'DVD Release', value: movie.DVD },
+                { label: 'IMDb Votes', value: movie.imdbVotes }
+            ].filter(item => item.value && item.value !== 'N/A');
+
+            const infoHTML = infoItems.map(item => `
+                <div style="margin-bottom: 1rem; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 6px;">
+                    <strong>${item.label}:</strong> ${item.value}
+                </div>
+            `).join('');
+
+            additionalInfo.innerHTML = infoHTML || '<div style="text-align: center; opacity: 0.7;">No additional information available</div>';
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = message;
+        }
+
+        // Action functions
+            function watchNow() {
+            const title = document.getElementById('movieTitle').textContent;
+            const playerURL = `player.html?title=${encodeURIComponent(title)}&year=${movieYear}&genre=${movieGenre}&id=${movieId}`;
+            window.location.href = playerURL;
+        }
+
+        function addToWatchlist() {
+            alert('📚 Added to your watchlist!\n(In a real app, this would save to user preferences)');
+        }
+
+        function shareMovie() {
+            if (navigator.share) {
+                navigator.share({
+                    title: document.getElementById('movieTitle').textContent,
+                    text: 'Check out this movie on h0stream!',
+                    url: window.location.href
+                });
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(window.location.href);
+                alert('🔗 Link copied to clipboard!');
+            }
+        }
+
+        function openStream(service, movieTitle) {
+            alert(`🎬 Opening ${movieTitle} on ${service}...\n(In a real app, this would redirect to the streaming service)`);
+        }
+
+        function playEpisode(episodeNumber) {
+            alert(`▶️ Playing Episode ${episodeNumber}...\n(In a real app, this would start the episode)`);
+        }
+
+        // Load movie details when page loads
+        document.addEventListener('DOMContentLoaded', loadMovieDetails);
+
+        // Add subtle parallax effect to floating elements
+        document.addEventListener('mousemove', (e) => {
+            const elements = document.querySelectorAll('.float-element');
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            
+            elements.forEach((el, index) => {
+                const speed = (index + 1) * 0.02;
+                const xPos = (x - 0.5) * 50 * speed;
+                const yPos = (y - 0.5) * 50 * speed;
+                el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+            });
+        });
+    </script>
+</body>
+</html>
